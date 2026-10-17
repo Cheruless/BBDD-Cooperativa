@@ -2,13 +2,17 @@
 DROP SEQUENCE SEQ_CREDITO;
 CREATE SEQUENCE SEQ_CREDITO START WITH 3011 INCREMENT BY 1;
 se utiliza ya que el número iba a chocar con el 3010, porque copmenzaba desde el 1 y estaban ocupados hasta el 3010
+
+ALTER TABLE cuota_credito_socio ADD nro_pagos_parciales NUMBER(2) DEFAULT 0;
 */
 
 CREATE OR REPLACE PACKAGE pkg_credito IS
     PROCEDURE sp_registra_credito(p_nro_socio NUMBER, p_cod_credito NUMBER,
                                   p_monto NUMBER, p_cuotas NUMBER, p_dia_pago NUMBER);
     PROCEDURE sp_registra_pago(p_nro_solic NUMBER, p_nro_cuota NUMBER, p_monto NUMBER);
+    PROCEDURE sp_registra_error(p_sentencia VARCHAR2, p_descrip VARCHAR2);
 
+    FUNCTION fn_creditos_con_saldo(p_nro_socio NUMBER) RETURN NUMBER;
     FUNCTION fn_calcula_cuota(p_monto NUMBER, p_cuotas NUMBER) RETURN NUMBER;
     FUNCTION fn_calcula_mora(p_saldo NUMBER, p_dias_atraso NUMBER) RETURN NUMBER;
     FUNCTION fn_tasa_vigente(p_cod_credito NUMBER) RETURN NUMBER;
@@ -100,12 +104,12 @@ CREATE OR REPLACE PACKAGE BODY pkg_credito IS
                 v_dia := 28;
             END IF;
 
---ADD_MONTHS(SYSDATE, i) toma la fecha de hoy y le suma i meses. Si hoy es 16/10/2026 y i es 1, da 16/11/2026
+--ADD_MONTHS(SYSDATE, i) toma la fecha de hoy y le suma i meses. Si hoy es 16/10/2026 y i es 1, da 16/11/2026,
 --LPAD(v_dia, 2, '0') toma el día y lo deja con dos dígitos. Si v_dia es 15, queda '15'. Si fuera 5, quedaría '05', que es lo que necesita el formato
             v_fecha := TO_DATE(TO_CHAR(ADD_MONTHS(SYSDATE, i), 'YYYYMM')
                                || LPAD(v_dia, 2, '0'), 'YYYYMMDD');
 
---se insertan los datos en la cuota del crédito con la cantidad de estas y los parámetros en 0
+--Se insertan los datos en la cuota del crédito con la cantidad de estas y los parámetros en 0
             INSERT INTO cuota_credito_socio
                 (nro_solic_credito, nro_cuota, fecha_venc_cuota,
                  valor_cuota, monto_pagado, saldo_por_pagar, nro_pagos_parciales)
@@ -210,17 +214,22 @@ CREATE OR REPLACE PACKAGE BODY pkg_credito IS
             END IF;
         END IF;
 
---UPDATE guarda el pago en la cuota que el socio está pagando (la actual)
+    --UPDATE guarda el pago en la cuota actual que el socio está pagando
         UPDATE cuota_credito_socio
+        --lo que lleva pagado, incluyendo este pago
         SET monto_pagado        = v_total_pag,
+        --lo que todavía le falta pagar de esta cuota
             saldo_por_pagar     = v_saldo,
+            --cuantos pagos parcaiales hizo sin completar la cuota
             nro_pagos_parciales = v_parc,
+            --el día que se hizo el pago
             fecha_pago_cuota    = SYSDATE
         WHERE nro_solic_credito = p_nro_solic
           AND nro_cuota = p_nro_cuota;
 
 
---En el WHEN NO_DATA_FOUND, el rollback no tiene nada que deshacer, porque el error ocurre en el SELECT, antes de cualquier cambio.
+--En el WHEN NO_DATA_FOUND, el rollback no tiene nada que deshacer,
+--porque el error ocurre en el SELECT, antes de cualquier cambio.
     EXCEPTION
         WHEN NO_DATA_FOUND THEN
             ROLLBACK TO sp_antes_pago;
@@ -233,4 +242,3 @@ CREATE OR REPLACE PACKAGE BODY pkg_credito IS
     END sp_registra_pago;
 
 END pkg_credito;
-
