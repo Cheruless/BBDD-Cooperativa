@@ -77,6 +77,8 @@ CREATE GLOBAL TEMPORARY TABLE gtt_cliente_validado(
 ) ON COMMIT DELETE ROWS;
 
 
+
+
 /*
     CONSIDERAR FUTURO USO DE CLUSTERS
         Modern Oracle Database Programming, Parte 3 cap 20.
