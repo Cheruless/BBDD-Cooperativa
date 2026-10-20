@@ -1,5 +1,5 @@
 INSERT INTO gtt_clientes
-VALUES(/home/exepulgar/Duoc/SegundoAnio/SEGUNDO SEMESTRE/TALLER DE BASE DE DATOS/Caso Semestral/repo/procedimiento/Casos de prueba.sql
+VALUES(
     '20.781.681-7',
     'E xe3 qui e1l',
     'Ra 4ul ',
